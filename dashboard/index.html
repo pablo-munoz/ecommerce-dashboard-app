@@ -276,7 +276,7 @@ loadData();
 /* Load JSON */
 async function loadData() {
   try {
-    const res = await fetch('data/dashboard-data.json');
+    const res = await fetch('/dashboard/data/dashboard-data.json');
     dashboardData = await res.json();
     populateFilters();
     renderDashboard();
