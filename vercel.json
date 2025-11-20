@@ -2,7 +2,7 @@
   "version": 2,
   "public": true,
   "builds": [
-    { "src": "dashboard/index.html", "use": "@vercel/static" }
+    { "src": "dashboard/**", "use": "@vercel/static" }
   ],
   "routes": [
     { "src": "/(.*)", "dest": "dashboard/$1" }
