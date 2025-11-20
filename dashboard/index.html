@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>E-commerce Analytics Dashboard</title>
+
+  <!-- Plotly -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.26.0/plotly.min.js"></script>
+
+  <style>
+    /* ------- Base / Layout ------- */
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 1600px;
+      margin: 0 auto;
+    }
+
+    /* ------- Header ------- */
+    header {
+      background: white;
+      padding: 30px;
+      border-radius: 15px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+      margin-bottom: 30px;
+    }
+
+    h1 {
+      color: #333;
+      font-size: 2.4em;
+      margin-bottom: 6px;
+    }
+    .subtitle {
+      color: #666;
+      font-size: 1.05em;
+    }
+
+    /* ------- Filters ------- */
+    .filters {
+      background: white;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+      margin-bottom: 24px;
+      display: flex;
+      gap: 15px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .filters label { color: #333; }
+
+    select, button {
+      padding: 12px 16px;
+      border: 2px solid #667eea;
+      border-radius: 10px;
+      font-size: 1em;
+      cursor: pointer;
+      transition: all 0.25s ease;
+    }
+
+    select {
+      background: white;
+      color: #333;
+    }
+
+    button {
+      background: #667eea;
+      color: white;
+      font-weight: 700;
+    }
+
+    button:hover {
+      background: #5568d3;
+      transform: translateY(-1px);
+    }
+
+    /* ------- KPIs ------- */
+    .kpi-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 20px;
+      margin-bottom: 24px;
+    }
+
+    .kpi-card {
+      background: white;
+      padding: 22px;
+      border-radius: 12px;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+      transition: transform 0.3s ease;
+    }
+
+    .kpi-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+    }
+
+    .kpi-label {
+      color: #888;
+      font-size: 0.9em;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 8px;
+    }
+
+    .kpi-value {
+      color: #333;
+      font-size: 2.2em;
+      font-weight: 800;
+    }
+
+    /* ------- Charts ------- */
+    .chart-container {
+      background: white;
+      padding: 22px;
+      border-radius: 12px;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+      margin-bottom: 24px;
+    }
+
+    .chart-title {
+      color: #333;
+      font-size: 1.35em;
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 3px solid #667eea;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(520px, 1fr));
+      gap: 24px;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+      gap: 24px;
+    }
+
+    /* ------- Helper ------- */
+    .loading {
+      text-align: center;
+      color: white;
+      font-size: 1.2em;
+      padding: 40px;
+    }
+
+    .muted {
+      color: #777;
+      font-size: 0.95em;
+    }
+  </style>
+</head>
+
+<body>
+<div class="container">
+
+  <header>
+    <h1>📊 E-commerce Analytics Dashboard</h1>
+    <p class="subtitle">Cloud-Native Data Pipeline · AWS S3 · Glue · Athena</p>
+  </header>
+
+  <!-- Filters -->
+  <div class="filters">
+    <label><strong>Country:&nbsp;</strong>
+      <select id="countryFilter">
+        <option value="all">All Countries</option>
+      </select>
+    </label>
+
+    <button id="applyBtn" type="button">Apply Filters</button>
+    <button id="refreshBtn" type="button">Refresh Data</button>
+
+    <span class="muted" id="filterHint"></span>
+  </div>
+
+  <!-- KPIs -->
+  <div class="kpi-container">
+    <div class="kpi-card">
+      <div class="kpi-label">Total Revenue</div>
+      <div class="kpi-value" id="kpiRevenue">—</div>
+    </div>
+
+    <div class="kpi-card">
+      <div class="kpi-label">Total Orders</div>
+      <div class="kpi-value" id="kpiOrders">—</div>
+    </div>
+
+    <div class="kpi-card">
+      <div class="kpi-label">Unique Customers</div>
+      <div class="kpi-value" id="kpiCustomers">—</div>
+    </div>
+
+    <div class="kpi-card">
+      <div class="kpi-label">Avg Order Value</div>
+      <div class="kpi-value" id="kpiAOV">—</div>
+    </div>
+  </div>
+
+  <!-- Row 1 -->
+  <div class="grid-2">
+    <div class="chart-container">
+      <div class="chart-title">Monthly Revenue Trend</div>
+      <div id="revenueChart"></div>
+    </div>
+
+    <div class="chart-container">
+      <div class="chart-title">Top 15 Products by Revenue</div>
+      <div id="productsChart"></div>
+    </div>
+  </div>
+
+  <!-- Row 2 -->
+  <div class="grid-2">
+    <div class="chart-container">
+      <div class="chart-title">RFM Customer Segmentation</div>
+      <div id="rfmChart"></div>
+    </div>
+
+    <div class="chart-container">
+      <div class="chart-title">Revenue by Country (Pie)</div>
+      <div id="countryPieChart"></div>
+    </div>
+  </div>
+
+  <!-- Row 3 -->
+  <div class="grid-2">
+    <div class="chart-container">
+      <div class="chart-title">Geographic Revenue Distribution (Choropleth)</div>
+      <div id="geoChart"></div>
+    </div>
+
+    <div class="chart-container">
+      <div class="chart-title">Customer Retention by Cohort</div>
+      <div id="cohortChart"></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+let dashboardData = null;
+let currentCountry = 'all';
+
+/* ISO-3 MAP */
+const ISO3_MAP = {
+  'United Kingdom': 'GBR', 'UK': 'GBR', 'Great Britain': 'GBR', 'England': 'GBR', 'Scotland': 'GBR', 'Wales': 'GBR',
+  'France': 'FRA', 'Spain': 'ESP', 'Portugal': 'PRT', 'Italy': 'ITA', 'Germany': 'DEU', 'Netherlands': 'NLD',
+  'Norway': 'NOR', 'Sweden': 'SWE', 'Denmark': 'DNK', 'Finland': 'FIN', 'Ireland': 'IRL', 'EIRE': 'IRL',
+  'Poland': 'POL', 'Czech Republic': 'CZE', 'Czechia': 'CZE', 'Austria': 'AUT', 'Switzerland': 'CHE',
+  'Belgium': 'BEL', 'Greece': 'GRC', 'Romania': 'ROU', 'Bulgaria': 'BGR', 'Croatia': 'HRV', 'Slovenia': 'SVN',
+  'Australia': 'AUS', 'United States': 'USA', 'USA': 'USA', 'Canada': 'CAN', 'Mexico': 'MEX',
+  'Brazil': 'BRA', 'Argentina': 'ARG', 'Chile': 'CHL', 'Peru': 'PER', 'Colombia': 'COL'
+};
+
+/* Init */
+document.getElementById('applyBtn').addEventListener('click', () => {
+  currentCountry = document.getElementById('countryFilter').value;
+  renderDashboard();
+});
+
+document.getElementById('refreshBtn').addEventListener('click', () => location.reload());
+
+loadData();
+
+/* Load JSON */
+async function loadData() {
+  try {
+    const res = await fetch('data/dashboard-data.json');
+    dashboardData = await res.json();
+    populateFilters();
+    renderDashboard();
+  } catch (err) {
+    console.error('Error loading data:', err);
+    document.body.insertAdjacentHTML(
+      'beforeend',
+      '<div class="loading">Failed to load dashboard-data.json — please ensure it exists under /data.</div>'
+    );
+  }
+}
+
+function populateFilters() {
+  const select = document.getElementById('countryFilter');
+  const countries = Array.from(
+    new Set((dashboardData?.country_revenue || []).map(d => d.country).filter(Boolean))
+  ).sort();
+  countries.forEach(country => {
+    const opt = document.createElement('option');
+    opt.value = country;
+    opt.textContent = country;
+    select.appendChild(opt);
+  });
+}
+
+/* Render */
+function renderDashboard() {
+  const hint = document.getElementById('filterHint');
+  hint.textContent = currentCountry === 'all'
+    ? 'Showing all countries'
+    : `Filtered to: ${currentCountry}`;
+
+  renderKPIs();
+  renderMonthlyTrend();
+  renderTopProducts();
+  renderRFM();
+  renderCountryPie();
+  renderGeo();
+  renderCohort();
+}
+
+/* KPIs */
+function renderKPIs() {
+  const rows = currentCountry === 'all'
+      ? (dashboardData?.country_revenue || [])
+      : (dashboardData?.country_revenue || []).filter(d => (d.country || '').trim() === currentCountry);
+
+  const providedKPIs = (dashboardData?.kpis && dashboardData.kpis[0] && currentCountry === 'all')
+      ? dashboardData.kpis[0]
+      : null;
+
+  const getField = (obj, alts, fallback = 0) => {
+    if (!obj) return fallback;
+    for (const k of alts) {
+      for (const key of [k, k.toLowerCase(), k.toUpperCase()]) {
+        if (Object.prototype.hasOwnProperty.call(obj, key) && obj[key] != null) {
+          const v = obj[key];
+          const n = (typeof v === 'string') ? Number(v.replace(/[, ]/g,'')) : Number(v);
+          return Number.isFinite(n) ? n : v;
+        }
+      }
+    }
+    return fallback;
+  };
+
+  const ORDER_KEYS = ['orders','total_orders','order_count','orders_count','monthly_orders','num_orders'];
+  const CUSTOMER_KEYS = ['customers','unique_customers','customer_count','customers_count','num_customers'];
+  const REVENUE_KEYS = ['revenue','total_revenue'];
+  const AOV_KEYS = ['avg_order_value','aov','average_order_value'];
+
+  let totalRevenue = 0, totalOrders = 0, totalCustomers = 0, avgOrderValue = 0;
+
+  if (providedKPIs) {
+    totalRevenue = getField(providedKPIs, REVENUE_KEYS, 0) || 0;
+    totalOrders = getField(providedKPIs, ORDER_KEYS, 0) || 0;
+    totalCustomers = getField(providedKPIs, CUSTOMER_KEYS, 0) || 0;
+
+    const aovFromKpis = getField(providedKPIs, AOV_KEYS, 0) || 0;
+    avgOrderValue = aovFromKpis || (totalOrders ? (totalRevenue / totalOrders) : 0);
+  } else {
+    totalRevenue = rows.reduce((s, d) => s + (getField(d, REVENUE_KEYS, 0) || 0), 0);
+    totalOrders = rows.reduce((s, d) => s + (getField(d, ORDER_KEYS, 0) || 0), 0);
+    totalCustomers = rows.reduce((s, d) => s + (getField(d, CUSTOMER_KEYS, 0) || 0), 0);
+
+    avgOrderValue = totalOrders > 0 ? (totalRevenue / totalOrders)
+                                    : getField(rows[0] || {}, AOV_KEYS, 0) || 0;
+  }
+
+  document.getElementById('kpiRevenue').textContent = `$${(Number(totalRevenue) / 1e6).toFixed(2)}M`;
+  document.getElementById('kpiOrders').textContent = Number(totalOrders || 0).toLocaleString();
+  document.getElementById('kpiCustomers').textContent = Number(totalCustomers || 0).toLocaleString();
+  document.getElementById('kpiAOV').textContent = `$${Number(avgOrderValue || 0).toFixed(2)}`;
+}
+
+/* Monthly Revenue Trend */
+function renderMonthlyTrend() {
+  let monthly = [];
+
+  if (currentCountry === 'all') {
+    monthly = (dashboardData?.monthly_sales && dashboardData.monthly_sales.length)
+      ? dashboardData.monthly_sales.map(d => ({ x: d.sales_month, y: d.monthly_revenue }))
+      : (dashboardData?.monthly_revenue || []).map(d => ({ x: d.month, y: d.revenue }));
+  } else {
+    const byCountry = dashboardData?.monthly_revenue_by_country || [];
+    if (byCountry.length) {
+      monthly = byCountry
+        .filter(d => d.country === currentCountry)
+        .map(d => ({ x: d.month, y: d.revenue }));
+    } else if (dashboardData?.monthly_sales?.length) {
+      monthly = dashboardData.monthly_sales.map(d => ({ x: d.sales_month, y: d.monthly_revenue }));
+    } else if (dashboardData?.monthly_revenue?.length) {
+      monthly = dashboardData.monthly_revenue.map(d => ({ x: d.month, y: d.revenue }));
+    }
+  }
+
+  monthly.sort((a, b) => new Date(a.x) - new Date(b.x));
+
+  const trace = {
+    x: monthly.map(d => d.x),
+    y: monthly.map(d => d.y),
+    type: 'scatter',
+    mode: 'lines+markers',
+    line: { color: '#667eea', width: 3 },
+    marker: { size: 8 },
+    hovertemplate: '%{x}<br>$%{y:,.0f}<extra></extra>'
+  };
+
+  Plotly.newPlot('revenueChart', [trace], {
+    xaxis: { title: 'Month' },
+    yaxis: { title: 'Revenue ($)', tickformat: ',~s' },
+    margin: { t: 10 }
+  }, { responsive: true });
+}
+
+/* Top Products */
+function renderTopProducts() {
+  let products = dashboardData.top_products || [];
+
+  if (currentCountry !== 'all') {
+    products = products.filter(p => p.country === currentCountry);
+  }
+
+  products = products
+    .sort((a, b) => b.revenue - a.revenue)
+    .slice(0, 15)
+    .reverse();
+
+  const trace = {
+    x: products.map(d => +d.revenue || 0),
+    y: products.map(d => (d.description || '').slice(0, 40)),
+    type: "bar",
+    orientation: "h",
+    marker: { color: "#764ba2" },
+    hovertemplate: "%{y}<br>$%{x:,.0f}<extra></extra>"
+  };
+
+  Plotly.newPlot(
+    "productsChart",
+    [trace],
+    {
+      xaxis: { title: "Revenue ($)", tickformat: ",~s" },
+      yaxis: { automargin: true },
+      margin: { t: 10, l: 160 }
+    }
+  );
+}
+
+/* RFM Chart */
+function renderRFM() {
+  let rfm = dashboardData.rfm_analysis || [];
+
+  if (currentCountry !== "all") {
+    rfm = rfm.filter(d => d.country === currentCountry);
+  }
+
+  const trace = {
+    x: rfm.map(d => +d.frequency || 0),
+    y: rfm.map(d => +d.monetary || 0),
+    mode: "markers",
+    type: "scatter",
+    marker: {
+      size: rfm.map(d => Math.max(6, (+d.frequency || 0) / 2)),
+      color: rfm.map(d => +d.recency || 0),
+      colorscale: "Viridis",
+      showscale: true,
+      colorbar: { title: "Recency" }
+    },
+    text: rfm.map(
+      d => `Customer: ${d.customerid}<br>Recency: ${d.recency} days<br>Frequency: ${d.frequency}<br>Monetary: $${(+d.monetary || 0).toFixed(2)}`
+    ),
+    hoverinfo: "text"
+  };
+
+  Plotly.newPlot(
+    "rfmChart",
+    [trace],
+    {
+      xaxis: { title: "Frequency" },
+      yaxis: { title: "Monetary ($)", tickformat: ",~s" },
+      margin: { t: 10 }
+    }
+  );
+}
+
+/* Country Pie */
+function renderCountryPie() {
+  let data = dashboardData.country_revenue || [];
+
+  if (currentCountry !== "all") {
+    data = data.filter(d => d.country === currentCountry);
+  }
+
+  const labels = data.map(d => d.country);
+  const values = data.map(d => +d.revenue || 0);
+
+  Plotly.newPlot(
+    "countryPieChart",
+    [{
+      labels, values, type: "pie",
+      marker: {
+        colors: [
+          "#667eea","#764ba2","#f093fb","#4facfe","#00f2fe",
+          "#43e97b","#fa709a","#fee140","#30cfd0","#a8edea"
+        ]
+      },
+      hovertemplate: "%{label}<br>$%{value:,.0f} (%{percent})<extra></extra>"
+    }],
+    { margin: { t: 10 } }
+  );
+}
+
+/* Geo Map */
+function renderGeo() {
+  const all = dashboardData?.country_revenue || [];
+  const filtered = currentCountry === 'all' ? all : all.filter(d => d.country === currentCountry);
+
+  const locations = [];
+  const z = [];
+  const text = [];
+
+  filtered.forEach(d => {
+    const iso3 = ISO3_MAP[d.country] || null;
+    if (iso3) {
+      locations.push(iso3);
+      z.push(+d.revenue || 0);
+      text.push(`${d.country}: $${(+d.revenue || 0).toLocaleString()}`);
+    }
+  });
+
+  const trace = {
+    type: 'choropleth',
+    locations,
+    z,
+    text,
+    colorscale: 'Viridis',
+    marker: { line: { color: 'white', width: 0.3 } },
+    hovertemplate: '%{text}<extra></extra>'
+  };
+
+  Plotly.newPlot(
+    'geoChart',
+    [trace],
+    {
+      geo: { scope: 'world', projection: { type: 'equirectangular' } },
+      margin: { t: 10 }
+    },
+    { responsive: true }
+  );
+}
+
+/* Cohort */
+function renderCohort() {
+  let cohort = dashboardData.cohort_analysis || [];
+
+  if (currentCountry !== "all") {
+    cohort = cohort.filter(c => c.country === currentCountry);
+  }
+
+  if (!cohort.length) {
+    Plotly.newPlot("cohortChart", [], {
+      annotations: [{ text: "No cohort data", showarrow: false }]
+    });
+    return;
+  }
+
+  const pivot = {};
+
+  cohort.forEach(r => {
+    if (!pivot[r.cohort_month]) pivot[r.cohort_month] = {};
+    pivot[r.cohort_month][+r.month_index] = +r.active_customers || 0;
+  });
+
+  const cohortMonths = Object.keys(pivot).sort(
+    (a, b) => new Date(a) - new Date(b)
+  );
+
+  const sizes = cohortMonths.map(m => pivot[m][0] || 0);
+  const maxIndex = Math.max(...cohort.map(d => +d.month_index || 0));
+
+  const z = cohortMonths.map((month, idx) => {
+    const base = sizes[idx];
+    return Array.from({ length: maxIndex + 1 }).map(
+      (_, i) => base > 0 ? ((pivot[month][i] || 0) / base) * 100 : 0
+    );
+  });
+
+  const xLabels = Array.from({ length: maxIndex + 1 }, (_, i) => i);
+  const yLabels = cohortMonths;
+
+  Plotly.newPlot(
+    "cohortChart",
+    [{
+      z,
+      x: xLabels,
+      y: yLabels,
+      type: "heatmap",
+      colorscale: "Greens",
+      hovertemplate: "Cohort %{y}<br>Month +%{x}: %{z:.1f}%<extra></extra>"
+    }],
+    {
+      xaxis: { title: "Months Since First Purchase" },
+      yaxis: { automargin: true },
+      margin: { t: 10 }
+    }
+  );
+}
+</script>
+
+</body>
+</html>
