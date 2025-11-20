@@ -7,7 +7,7 @@ import json
 # Configuration
 # --------------------------------------------------
 DB_NAME = "ecommerce_db"
-S3_OUTPUT = "s3://ogs-ecommerce-analytics-2025/data-generation/"
+S3_OUTPUT = "s3://ogs-ecommerce-analytics-2025-v2/data-generation/"
 
 print("--- Starting Data Generation for Web Dashboard ---")
 
@@ -146,8 +146,8 @@ queries = {
             CAST(month_offset AS INTEGER) AS month_index,
             COUNT(DISTINCT customerid)    AS active_customers
         FROM joined
-        GROUP BY country, cohort_month, month_index
-        ORDER BY country, cohort_month, month_index
+        GROUP BY country, cohort_month, month_offset
+        ORDER BY country, cohort_month, month_offset
     """,
 
     # ---------- Revenue per country ----------

@@ -16,7 +16,7 @@ provider "aws" {
 # --- S3 BUCKET FOR PUBLIC WEBSITE ---
 resource "aws_s3_bucket" "dashboard" {
   # Bucket names must be globally unique.
-  bucket = "my-unique-ecommerce-dashboard-app-20251103" 
+  bucket = "ogs-dashboard-website-2025-v3" 
 }
 
 # 1. Turn OFF the "Block all public access" settings for this bucket
@@ -43,6 +43,7 @@ resource "aws_s3_bucket_policy" "dashboard" {
       Resource = "${aws_s3_bucket.dashboard.arn}/*"
     }]
   })
+  depends_on = [ aws_s3_bucket_public_access_block.dashboard ]
 }
 
 # 3. Configure the bucket to act as a website

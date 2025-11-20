@@ -1,7 +1,8 @@
 # Python
 __pycache__/
-*.pyc
+*.py[cod]
 venv/
+.env
 
 # Terraform
 .terraform/
@@ -9,8 +10,5 @@ venv/
 *.tfstate.backup
 .terraform.lock.hcl
 
-# macOS
+# Mac system files
 .DS_Store
-
-# VS Code
-.vscode/

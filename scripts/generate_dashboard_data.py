@@ -15,7 +15,7 @@ s3 = boto3.client('s3', region_name='us-east-1')
 
 # Configuration
 DATABASE = 'ecommerce_db'
-OUTPUT_LOCATION = 's3://ogs-ecommerce-analytics-2025/athena-results/'
+OUTPUT_LOCATION = 's3://ogs-ecommerce-analytics-2025-v2/athena-results/'
 QUERIES = {
     'kpis': """
         SELECT
